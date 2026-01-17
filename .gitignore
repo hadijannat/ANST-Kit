@@ -43,6 +43,8 @@ pytest_out.txt
 
 # Claude Code
 .claude/
+CLAUDE.md
+AGENTS.md
 
 # Logs
 *.log
