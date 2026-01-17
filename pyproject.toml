@@ -20,6 +20,7 @@ dependencies = [
   "numpy>=1.24",
   "networkx>=3.1",
   "pydantic>=2.0",
+  "pydantic-settings>=2.0",
   "torch>=2.0",
 ]
 
@@ -40,9 +41,13 @@ dev = [
   "pytest-asyncio>=0.21",
   "httpx>=0.25",  # for FastAPI TestClient
 ]
+dashboard = [
+  "streamlit>=1.30",
+  "plotly>=5.18",
+]
 
 [project.urls]
-Repository = "https://example.com/anstkit"  # replace for publication
+Repository = "https://github.com/anstkit/anstkit"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

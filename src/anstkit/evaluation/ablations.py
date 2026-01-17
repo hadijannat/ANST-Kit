@@ -11,6 +11,7 @@ This enables quantifying each gate's contribution to safety.
 
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -18,9 +19,12 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from anstkit.agent_demo import DemoAgent
+from anstkit.config import get_settings
 from anstkit.evaluation.scenarios import Scenario, ScenarioGenerator, ScenarioType
 from anstkit.physics_pinn import PhysicsGateConfig, load_pinn, physics_gate, train_pinn
 from anstkit.plant_graph import PlantGraph
+
+logger = logging.getLogger(__name__)
 
 
 class AblationType(str, Enum):
@@ -85,8 +89,6 @@ class AblationRunner:
     fair comparison of gate contributions to safety.
     """
 
-    DEFAULT_WEIGHTS = Path(__file__).resolve().parent.parent.parent.parent / "models" / "tank_pinn.pt"
-
     def __init__(self, config: AblationConfig):
         """Initialize ablation runner.
 
@@ -99,11 +101,12 @@ class AblationRunner:
         self.plant = PlantGraph()
         self.physics_cfg = PhysicsGateConfig(horizon=2.0, n_eval=32)
 
-        # Load or train PINN
-        weights_path = config.pinn_weights_path or self.DEFAULT_WEIGHTS
+        # Load or train PINN using centralized config
+        settings = get_settings()
+        weights_path = config.pinn_weights_path or settings.pinn_weights_path
         if not weights_path.exists():
-            print(f"Training PINN (weights not found at {weights_path})...")
-            train_pinn(weights_path, steps=1500, seed=config.seed)
+            logger.info(f"Training PINN (weights not found at {weights_path})...")
+            train_pinn(weights_path, steps=settings.pinn.training_steps, seed=config.seed)
         self.pinn = load_pinn(weights_path)
 
     def run_all(self) -> Dict[AblationType, AblationResult]:

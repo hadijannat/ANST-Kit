@@ -12,30 +12,68 @@ Replace this module with a real LLM agent in production.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
-from .schemas import ActionType, ControlAction, Proposal
+from .config import get_settings
+from .schemas import ActionType, ControlAction, PlantState, Proposal
 
 
 @dataclass
 class DemoAgentConfig:
-    p_hallucinate_id: float = 0.20
-    p_out_of_range: float = 0.20
+    """Configuration for demo agent behavior.
+
+    Defaults are loaded from centralized config if not specified.
+    """
+
+    p_hallucinate_id: Optional[float] = None
+    p_out_of_range: Optional[float] = None
+
+    def __post_init__(self):
+        """Load defaults from settings if not specified."""
+        settings = get_settings()
+        if self.p_hallucinate_id is None:
+            self.p_hallucinate_id = settings.agent.p_hallucinate_id
+        if self.p_out_of_range is None:
+            self.p_out_of_range = settings.agent.p_out_of_range
 
 
 class DemoAgent:
-    def __init__(self, seed: int = 7, cfg: DemoAgentConfig | None = None):
+    """Deterministic demo agent for testing the triadic runtime assurance.
+
+    This agent intentionally produces some invalid proposals to test
+    the structural and physics gates.
+    """
+
+    def __init__(self, seed: Optional[int] = None, cfg: Optional[DemoAgentConfig] = None):
+        """Initialize the demo agent.
+
+        Args:
+            seed: Random seed for reproducibility. If None, uses config default.
+            cfg: Agent configuration. If None, loads from centralized config.
+        """
+        settings = get_settings()
+        seed = seed if seed is not None else settings.seed
         self.rng = np.random.default_rng(seed)
         self.cfg = cfg or DemoAgentConfig()
 
-    def propose(self, goal: str, state) -> Proposal:
+    def propose(self, goal: str, state: PlantState) -> Proposal:
+        """Propose actions based on the goal and current state.
+
+        Args:
+            goal: Natural language goal (e.g., "increase throughput").
+            state: Current plant state.
+
+        Returns:
+            Proposal with suggested actions.
+        """
+        settings = get_settings()
         actions: List[ControlAction] = []
 
-        # Default targets
-        pump_id = "P1"
-        valve_id = "V2"
+        # Default targets from config
+        pump_id = settings.plant.pump_id
+        valve_id = settings.plant.outlet_valve_id
 
         # Hallucinate an ID occasionally
         if self.rng.random() < self.cfg.p_hallucinate_id:
@@ -61,17 +99,32 @@ class DemoAgent:
 
         return Proposal(goal=goal, actions=actions, rationale="Demo policy", confidence=None)
 
-    def revise(self, proposal: Proposal, feedback: List[str], state) -> Proposal:
-        """Very small "self-correction" loop based on validator feedback."""
+    def revise(
+        self,
+        proposal: Proposal,
+        feedback: List[str],
+        state: PlantState,
+    ) -> Proposal:
+        """Revise a proposal based on validator feedback.
 
-        new_actions = []
+        Args:
+            proposal: Previous proposal that failed validation.
+            feedback: List of rejection reasons from gates.
+            state: Current plant state.
+
+        Returns:
+            Revised proposal with corrected actions.
+        """
+        settings = get_settings()
+        new_actions: List[ControlAction] = []
+
         for a in proposal.actions:
             new_a = a.model_copy(deep=True)
 
             if "Unknown target_id" in " ".join(feedback):
-                # Replace unknown valves with V2 in demo
+                # Replace unknown valves with valid outlet valve from config
                 if new_a.type == ActionType.SET_VALVE_OPENING:
-                    new_a.target_id = "V2"
+                    new_a.target_id = settings.plant.outlet_valve_id
 
             if "out of allowed range" in " ".join(feedback):
                 new_a.value = float(np.clip(new_a.value, 0.0, 1.0))
@@ -83,4 +136,9 @@ class DemoAgent:
 
             new_actions.append(new_a)
 
-        return Proposal(goal=proposal.goal, actions=new_actions, rationale=proposal.rationale, confidence=proposal.confidence)
+        return Proposal(
+            goal=proposal.goal,
+            actions=new_actions,
+            rationale=proposal.rationale,
+            confidence=proposal.confidence,
+        )

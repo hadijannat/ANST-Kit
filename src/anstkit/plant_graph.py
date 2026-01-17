@@ -18,6 +18,7 @@ from typing import List, Tuple, Type
 
 import networkx as nx
 
+from .config import get_settings
 from .graph.base import GraphBackend
 from .graph.networkx_backend import NetworkXBackend
 from .ingestion.dexpi_parser import DEXPIParseResult
@@ -27,10 +28,27 @@ from .schemas import ActionType, ControlAction, GateResult, ValidationStatus
 
 @dataclass
 class DemoPlantConfig:
-    tank_id: str = "T1"
-    pump_id: str = "P1"
-    inlet_valve_id: str = "V1"
-    outlet_valve_id: str = "V2"
+    """Demo plant configuration with equipment IDs.
+
+    Defaults are loaded from centralized config if not specified.
+    """
+
+    tank_id: str | None = None
+    pump_id: str | None = None
+    inlet_valve_id: str | None = None
+    outlet_valve_id: str | None = None
+
+    def __post_init__(self):
+        """Load defaults from settings if not specified."""
+        settings = get_settings()
+        if self.tank_id is None:
+            self.tank_id = settings.plant.tank_id
+        if self.pump_id is None:
+            self.pump_id = settings.plant.pump_id
+        if self.inlet_valve_id is None:
+            self.inlet_valve_id = settings.plant.inlet_valve_id
+        if self.outlet_valve_id is None:
+            self.outlet_valve_id = settings.plant.outlet_valve_id
 
 
 class PlantGraph:

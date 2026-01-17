@@ -1,11 +1,22 @@
-"""Append-only audit event store with SQLite backend."""
+"""Append-only audit event store with SQLite backend.
+
+This module provides thread-safe audit logging using SQLite. Thread safety is
+achieved through thread-local connections, ensuring each thread gets its own
+database connection.
+"""
+
+from __future__ import annotations
 
 import json
+import logging
 import sqlite3
+import threading
 from datetime import datetime
 from typing import List, Optional
 
 from .events import AuditEvent, EventType
+
+logger = logging.getLogger(__name__)
 
 
 class AuditStore:
@@ -15,6 +26,11 @@ class AuditStore:
     1. Only allowing append operations (no updates or deletes)
     2. Storing all event metadata including timestamps and UUIDs
     3. Maintaining causality chains via parent_event_id
+
+    Thread Safety:
+        Uses thread-local connections to ensure each thread gets its own
+        SQLite connection, preventing "SQLite objects created in a thread
+        can only be used in that same thread" errors.
 
     Example:
         >>> store = AuditStore(":memory:")
@@ -35,32 +51,61 @@ class AuditStore:
         """
         self.db_path = db_path
         self._is_memory = db_path == ":memory:"
-        # For in-memory databases, maintain a single persistent connection
-        self._conn: Optional[sqlite3.Connection] = None
+
+        # Thread-local storage for connections
+        self._local = threading.local()
+
+        # For in-memory databases, we need a shared connection
+        # to preserve data across calls
+        self._memory_conn: Optional[sqlite3.Connection] = None
+        self._memory_lock = threading.Lock()
+
         self._init_db()
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Get a database connection.
+        """Get a database connection for the current thread.
 
-        For in-memory databases, returns the persistent connection.
-        For file databases, creates a new connection.
-        Note: check_same_thread=False allows connection sharing across threads
-        (needed for FastAPI's threadpool execution of sync endpoints).
+        For in-memory databases, returns a shared connection (protected by lock).
+        For file databases, returns a thread-local connection.
         """
         if self._is_memory:
-            if self._conn is None:
-                self._conn = sqlite3.connect(":memory:", check_same_thread=False)
-            return self._conn
-        return sqlite3.connect(self.db_path, check_same_thread=False)
+            # In-memory databases need a single shared connection
+            # to preserve data, protected by a lock
+            if self._memory_conn is None:
+                with self._memory_lock:
+                    if self._memory_conn is None:
+                        self._memory_conn = sqlite3.connect(
+                            ":memory:", check_same_thread=False
+                        )
+            return self._memory_conn
+
+        # File-based database: use thread-local connection
+        if not hasattr(self._local, "conn") or self._local.conn is None:
+            self._local.conn = sqlite3.connect(self.db_path)
+            logger.debug(f"Created new SQLite connection for thread {threading.current_thread().name}")
+        return self._local.conn
 
     def _close_connection(self, conn: sqlite3.Connection) -> None:
-        """Close a connection if it's not the persistent in-memory connection."""
-        if not self._is_memory:
-            conn.close()
+        """Close a connection if appropriate.
+
+        For file databases, we keep thread-local connections open for reuse.
+        For in-memory databases, we never close the shared connection until close() is called.
+        """
+        # Don't close - let connections be reused within their thread
+        pass
 
     def _init_db(self) -> None:
         """Create the events table if it doesn't exist."""
         conn = self._get_connection()
+
+        if self._is_memory:
+            with self._memory_lock:
+                self._create_schema(conn)
+        else:
+            self._create_schema(conn)
+
+    def _create_schema(self, conn: sqlite3.Connection) -> None:
+        """Create the database schema."""
         conn.execute("""
             CREATE TABLE IF NOT EXISTS events (
                 event_id TEXT PRIMARY KEY,
@@ -78,7 +123,6 @@ class AuditStore:
             CREATE INDEX IF NOT EXISTS idx_event_type ON events(event_type)
         """)
         conn.commit()
-        self._close_connection(conn)
 
     def append(self, event: AuditEvent) -> None:
         """Append an event to the store.
@@ -87,6 +131,15 @@ class AuditStore:
             event: The audit event to store.
         """
         conn = self._get_connection()
+
+        if self._is_memory:
+            with self._memory_lock:
+                self._insert_event(conn, event)
+        else:
+            self._insert_event(conn, event)
+
+    def _insert_event(self, conn: sqlite3.Connection, event: AuditEvent) -> None:
+        """Insert an event into the database."""
         conn.execute(
             "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?)",
             (
@@ -99,7 +152,6 @@ class AuditStore:
             ),
         )
         conn.commit()
-        self._close_connection(conn)
 
     def query(
         self,
@@ -118,15 +170,34 @@ class AuditStore:
             List of matching AuditEvent objects, ordered by timestamp descending.
         """
         conn = self._get_connection()
+
+        if self._is_memory:
+            with self._memory_lock:
+                return self._execute_query(conn, session_id, event_type, limit)
+        else:
+            return self._execute_query(conn, session_id, event_type, limit)
+
+    def _execute_query(
+        self,
+        conn: sqlite3.Connection,
+        session_id: Optional[str],
+        event_type: Optional[EventType],
+        limit: int,
+    ) -> List[AuditEvent]:
+        """Execute the query and return results."""
         query = "SELECT * FROM events WHERE 1=1"
         params: List[str] = []
+
         if session_id:
             query += " AND session_id = ?"
             params.append(session_id)
         if event_type:
             query += " AND event_type = ?"
             params.append(event_type.value)
-        query += f" ORDER BY timestamp DESC LIMIT {limit}"
+
+        # Use parameterized limit for safety
+        query += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(str(limit))
 
         cursor = conn.execute(query, params)
         events = []
@@ -141,7 +212,6 @@ class AuditStore:
                     payload=json.loads(row[5]),
                 )
             )
-        self._close_connection(conn)
         return events
 
     def delete(self, event_id: str) -> None:
@@ -159,7 +229,20 @@ class AuditStore:
         raise ValueError("Audit events are immutable and cannot be deleted")
 
     def close(self) -> None:
-        """Close the persistent connection for in-memory databases."""
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None
+        """Close all database connections.
+
+        For in-memory databases, closes the shared connection (data is lost).
+        For file databases, closes all thread-local connections.
+        """
+        if self._is_memory:
+            with self._memory_lock:
+                if self._memory_conn is not None:
+                    self._memory_conn.close()
+                    self._memory_conn = None
+                    logger.debug("Closed in-memory audit store connection")
+        else:
+            # Close thread-local connection if it exists
+            if hasattr(self._local, "conn") and self._local.conn is not None:
+                self._local.conn.close()
+                self._local.conn = None
+                logger.debug("Closed thread-local audit store connection")

@@ -25,6 +25,7 @@ an out-of-distribution / confidence heuristic.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
@@ -34,6 +35,8 @@ import torch
 import torch.nn as nn
 
 from .schemas import ActionType, ControlAction, GateResult, PlantState, ValidationStatus
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -121,7 +124,8 @@ def train_pinn(
     torch.set_num_threads(1)
     try:
         torch.set_num_interop_threads(1)
-    except Exception:
+    except RuntimeError:
+        # interop threads can only be set before any inter-op parallel work
         pass
 
     dev = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
@@ -152,9 +156,9 @@ def train_pinn(
         loss.backward()
         opt.step()
 
-        # Cheap progress prints every 500 steps
+        # Log progress every 500 steps
         if step % 500 == 0:
-            print(f"step={step} loss={loss.item():.6f} phys={loss_phys.item():.6f} ic={loss_ic.item():.6f}")
+            logger.info(f"step={step} loss={loss.item():.6f} phys={loss_phys.item():.6f} ic={loss_ic.item():.6f}")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"state_dict": model.state_dict(), "seed": seed}, out_path)
@@ -164,7 +168,8 @@ def train_pinn(
 
 def load_pinn(weights_path: Path, device: str | None = None) -> TankPINN:
     dev = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
-    ckpt = torch.load(weights_path, map_location=dev)
+    # Use weights_only=True for security - prevents arbitrary code execution
+    ckpt = torch.load(weights_path, map_location=dev, weights_only=True)
     model = TankPINN().to(dev)
     model.load_state_dict(ckpt["state_dict"])
     model.eval()

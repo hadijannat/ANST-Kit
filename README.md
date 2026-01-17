@@ -38,6 +38,24 @@ ANST-Kit implements a **triadic runtime assurance system** that enables safe age
 
 ---
 
+## 👀 See It In Action
+
+<p align="center">
+  <img src="assets/dashboard_in_action.png" alt="ANST-Kit Dashboard Demo" width="100%">
+</p>
+
+The interactive dashboard shows the triadic verification in real-time:
+
+- **Decision Banner**: Shows whether the AI's proposed action was **APPROVED** (safe to execute) or **REJECTED** (blocked for safety)
+- **Gate Results**: Two independent safety checks must pass:
+  - *Structural Gate*: Ensures the AI isn't trying to control equipment that doesn't exist
+  - *Physics Gate*: Simulates what would happen if we followed the AI's suggestion
+- **Predicted Trajectory**: A live simulation showing how tank levels would change over time, with clear safety boundaries (red zones = danger)
+
+> **Try it yourself**: `streamlit run src/anstkit/dashboard/app.py`
+
+---
+
 ## 🏗️ System Architecture
 
 <p align="center">

@@ -1,5 +1,12 @@
 # ANST-Kit Docker Compose Configuration
 # Usage: docker-compose up -d
+#
+# Environment variables (set in .env or shell):
+#   ANSTKIT_API_PORT - Orchestrator API port (default: 8000)
+#   ANSTKIT_SEED - Random seed for reproducibility (default: 42)
+#   ANSTKIT_AUDIT_DB_PATH - Audit database path (default: /app/data/audit/audit.db)
+#   ANSTKIT_API_KEY - API key for authentication (optional, auth disabled if not set)
+#   MLFLOW_PORT - MLflow UI port (default: 5000)
 
 version: '3.8'
 
@@ -7,13 +14,16 @@ services:
   orchestrator:
     build: .
     ports:
-      - "8000:8000"
+      - "${ANSTKIT_API_PORT:-8000}:8000"
     volumes:
       - ./models:/app/models:ro
       - audit-data:/app/data/audit
     environment:
-      - PINN_SEED=42
-      - AUDIT_DB=/app/data/audit/audit.db
+      - ANSTKIT_SEED=${ANSTKIT_SEED:-42}
+      - ANSTKIT_AUDIT__DB_PATH=${ANSTKIT_AUDIT_DB_PATH:-/app/data/audit/audit.db}
+      - ANSTKIT_API__REQUIRE_AUTH=${ANSTKIT_API_REQUIRE_AUTH:-false}
+      - ANSTKIT_API__API_KEY=${ANSTKIT_API_KEY:-}
+      - ANSTKIT_LOG_LEVEL=${ANSTKIT_LOG_LEVEL:-INFO}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
@@ -26,7 +36,7 @@ services:
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.10.0
     ports:
-      - "5000:5000"
+      - "${MLFLOW_PORT:-5000}:5000"
     volumes:
       - mlflow-data:/mlflow
     command: >

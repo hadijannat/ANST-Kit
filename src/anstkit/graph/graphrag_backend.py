@@ -118,7 +118,7 @@ class GraphRAGBackend(GraphBackend):
             self._graphrag_loaded = True
             logger.info(f"GraphRAG index loaded from {index_dir}")
 
-        except Exception as e:
+        except (FileNotFoundError, OSError, ValueError) as e:
             logger.warning(f"Failed to load GraphRAG index: {e}. Using fallback mode.")
             self._graphrag_loaded = False
 
@@ -289,7 +289,7 @@ class GraphRAGBackend(GraphBackend):
                 members = group.get("title", group.get("id", [])).tolist()
                 if members:
                     communities.append(members)
-        except Exception as e:
+        except (KeyError, ValueError, TypeError) as e:
             logger.warning(f"Failed to extract communities: {e}")
             communities = [self._fallback.get_all_nodes()]
 

@@ -89,3 +89,9 @@ class HealthResponse(BaseModel):
 
     status: str
     service: str
+
+
+class ErrorResponse(BaseModel):
+    """Error response for API errors."""
+
+    detail: str
