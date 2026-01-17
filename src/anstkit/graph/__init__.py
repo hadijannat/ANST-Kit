@@ -9,9 +9,12 @@ switching between different graph implementations:
 
 from .base import GraphBackend, NodeKind
 from .networkx_backend import NetworkXBackend
+from .graphrag_backend import GraphRAGBackend, GraphRAGConfig
 
 __all__ = [
     "GraphBackend",
     "NodeKind",
     "NetworkXBackend",
+    "GraphRAGBackend",
+    "GraphRAGConfig",
 ]
