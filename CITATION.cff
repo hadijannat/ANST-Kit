@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+title: "ANST-Kit: Agentic Neuro-Symbolic Twin Toolkit"
+message: "If you use this software, please cite it using the metadata in this file."
+type: software
+authors:
+  - name: "ANST-Kit Contributors"
+version: 0.1.0
+date-released: "2026-01-17"
+license: MIT
+keywords:
+  - digital twin
+  - GraphRAG
+  - physics-informed neural networks
+  - agentic AI
+  - runtime assurance
