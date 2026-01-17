@@ -1,0 +1,48 @@
+# ANST-Kit Docker Compose Configuration
+# Usage: docker-compose up -d
+
+version: '3.8'
+
+services:
+  orchestrator:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - audit-data:/app/data/audit
+    environment:
+      - PINN_SEED=42
+      - AUDIT_DB=/app/data/audit/audit.db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - anstkit-network
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.10.0
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --default-artifact-root /mlflow/mlruns
+    restart: unless-stopped
+    networks:
+      - anstkit-network
+
+volumes:
+  audit-data:
+  mlflow-data:
+
+networks:
+  anstkit-network:
+    driver: bridge

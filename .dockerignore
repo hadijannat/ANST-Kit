@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+.eggs
+dist
+build
+*.egg
+
+# Virtual environments
+.env
+.venv
+venv
+ENV
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# DVC
+.dvc
+
+# MLflow runs (built in container)
+mlruns
+
+# Data directories (mounted as volumes)
+data/
+
+# Tests (not needed in production)
+tests/
+
+# Documentation
+docs/
+*.md
+
+# Misc
+.DS_Store
+*.log
+.hypothesis
