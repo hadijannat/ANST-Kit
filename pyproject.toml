@@ -28,9 +28,14 @@ graphrag = [
   "graphrag>=1.0",
   "pandas>=2.0",
 ]
+services = [
+  "fastapi>=0.109",
+  "uvicorn>=0.27",
+]
 dev = [
   "pytest>=8.0",
   "pytest-asyncio>=0.21",
+  "httpx>=0.25",  # for FastAPI TestClient
 ]
 
 [project.urls]

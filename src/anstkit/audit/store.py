@@ -44,12 +44,14 @@ class AuditStore:
 
         For in-memory databases, returns the persistent connection.
         For file databases, creates a new connection.
+        Note: check_same_thread=False allows connection sharing across threads
+        (needed for FastAPI's threadpool execution of sync endpoints).
         """
         if self._is_memory:
             if self._conn is None:
-                self._conn = sqlite3.connect(":memory:")
+                self._conn = sqlite3.connect(":memory:", check_same_thread=False)
             return self._conn
-        return sqlite3.connect(self.db_path)
+        return sqlite3.connect(self.db_path, check_same_thread=False)
 
     def _close_connection(self, conn: sqlite3.Connection) -> None:
         """Close a connection if it's not the persistent in-memory connection."""
