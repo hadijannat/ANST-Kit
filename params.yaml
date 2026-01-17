@@ -1,0 +1,16 @@
+# ANST-Kit Training and Evaluation Parameters
+# Used by DVC pipeline for reproducible experiments
+
+training:
+  steps: 3000
+  seed: 7
+  lr: 3e-4
+
+evaluation:
+  n_trials: 100
+  seed: 7
+
+physics_gate:
+  horizon: 5.0
+  n_eval: 64
+  residual_threshold: 5e-3

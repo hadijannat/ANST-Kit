@@ -1,0 +1,34 @@
+# DVC Pipeline for ANST-Kit reproducible experiments
+# Run with: dvc repro
+
+stages:
+  train-pinn:
+    cmd: PYTHONPATH=src python -m anstkit train-pinn --out models/tank_pinn.pt --steps ${training.steps} --seed ${training.seed} --lr ${training.lr}
+    params:
+      - training.steps
+      - training.seed
+      - training.lr
+    outs:
+      - models/tank_pinn.pt
+
+  benchmark:
+    cmd: PYTHONPATH=src python -m anstkit benchmark --n ${evaluation.n_trials} --seed ${evaluation.seed} --output metrics/benchmark.json
+    deps:
+      - models/tank_pinn.pt
+    params:
+      - evaluation.n_trials
+      - evaluation.seed
+    metrics:
+      - metrics/benchmark.json:
+          cache: false
+
+  ablation:
+    cmd: PYTHONPATH=src python -m anstkit ablation --n ${evaluation.n_trials} --seed ${evaluation.seed} --output metrics/ablation_results.json
+    deps:
+      - models/tank_pinn.pt
+    params:
+      - evaluation.n_trials
+      - evaluation.seed
+    metrics:
+      - metrics/ablation_results.json:
+          cache: false

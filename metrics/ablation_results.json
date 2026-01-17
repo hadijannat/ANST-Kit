@@ -1,0 +1,38 @@
+{
+  "brain_only": {
+    "ablation_type": "brain_only",
+    "n_trials": 100,
+    "unsafe_rate": 0.4,
+    "approval_rate": 1.0,
+    "mean_latency_ms": 0.0036849603930022568,
+    "structural_veto_rate": 0.0,
+    "physics_veto_rate": 0.0
+  },
+  "brain_structural": {
+    "ablation_type": "brain_structural",
+    "n_trials": 100,
+    "unsafe_rate": 0.19,
+    "approval_rate": 0.59,
+    "mean_latency_ms": 0.015525470080319792,
+    "structural_veto_rate": 0.41,
+    "physics_veto_rate": 0.0
+  },
+  "brain_physics": {
+    "ablation_type": "brain_physics",
+    "n_trials": 100,
+    "unsafe_rate": 0.11,
+    "approval_rate": 0.39,
+    "mean_latency_ms": 0.09435330895939842,
+    "structural_veto_rate": 0.0,
+    "physics_veto_rate": 0.61
+  },
+  "full_triad": {
+    "ablation_type": "full_triad",
+    "n_trials": 100,
+    "unsafe_rate": 0.08,
+    "approval_rate": 0.4,
+    "mean_latency_ms": 0.07437122971168719,
+    "structural_veto_rate": 0.32,
+    "physics_veto_rate": 0.28
+  }
+}

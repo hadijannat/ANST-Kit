@@ -48,7 +48,7 @@ def cmd_run(args: argparse.Namespace) -> None:
 
 def cmd_train_pinn(args: argparse.Namespace) -> None:
     out = Path(args.out)
-    metrics = train_pinn(out, steps=args.steps, seed=args.seed)
+    metrics = train_pinn(out, steps=args.steps, seed=args.seed, lr=args.lr)
     print("Saved weights to", out)
     print("Final metrics:", metrics)
 
@@ -117,8 +117,14 @@ def cmd_benchmark(args: argparse.Namespace) -> None:
         triad_approval_rate=approved_triad / args.n,
     )
 
-    print("=== Benchmark ===")
-    print(res.model_dump())
+    if args.output:
+        import json
+        with open(args.output, "w") as f:
+            json.dump(res.model_dump(), f, indent=2)
+        print(f"Results saved to {args.output}")
+    else:
+        print("=== Benchmark ===")
+        print(res.model_dump())
 
 
 def cmd_ablation(args: argparse.Namespace) -> None:
@@ -170,11 +176,13 @@ def main() -> None:
     p_train.add_argument("--out", default=str(DEFAULT_WEIGHTS))
     p_train.add_argument("--steps", type=int, default=3000)
     p_train.add_argument("--seed", type=int, default=7)
+    p_train.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
     p_train.set_defaults(func=cmd_train_pinn)
 
     p_bench = sub.add_parser("benchmark", help="Run a small reproducibility benchmark")
     p_bench.add_argument("--n", type=int, default=500)
     p_bench.add_argument("--seed", type=int, default=7)
+    p_bench.add_argument("--output", type=str, help="Output JSON file for results")
     p_bench.set_defaults(func=cmd_benchmark)
 
     p_ablation = sub.add_parser("ablation", help="Run ablation study comparing triad configurations")

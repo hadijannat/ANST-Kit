@@ -1,0 +1,49 @@
+schema: '2.0'
+stages:
+  train-pinn:
+    cmd: PYTHONPATH=src python -m anstkit train-pinn --out models/tank_pinn.pt 
+      --steps 3000 --seed 7 --lr 0.0003
+    params:
+      params.yaml:
+        training.lr: 0.0003
+        training.seed: 7
+        training.steps: 3000
+    outs:
+    - path: models/tank_pinn.pt
+      hash: md5
+      md5: cd13dad0c571e8cd076c4f1fede3047b
+      size: 38505
+  benchmark:
+    cmd: PYTHONPATH=src python -m anstkit benchmark --n 100 --seed 7 --output 
+      metrics/benchmark.json
+    deps:
+    - path: models/tank_pinn.pt
+      hash: md5
+      md5: cd13dad0c571e8cd076c4f1fede3047b
+      size: 38505
+    params:
+      params.yaml:
+        evaluation.n_trials: 100
+        evaluation.seed: 7
+    outs:
+    - path: metrics/benchmark.json
+      hash: md5
+      md5: ceebf4046463f24da3bd349d1ebb59f9
+      size: 105
+  ablation:
+    cmd: PYTHONPATH=src python -m anstkit ablation --n 100 --seed 7 --output 
+      metrics/ablation_results.json
+    deps:
+    - path: models/tank_pinn.pt
+      hash: md5
+      md5: cd13dad0c571e8cd076c4f1fede3047b
+      size: 38505
+    params:
+      params.yaml:
+        evaluation.n_trials: 100
+        evaluation.seed: 7
+    outs:
+    - path: metrics/ablation_results.json
+      hash: md5
+      md5: 2276b51ded5929f50bb8d28dad98f8c5
+      size: 972
