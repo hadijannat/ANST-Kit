@@ -18,11 +18,11 @@ from typing import List, Tuple, Type
 
 import networkx as nx
 
-from .schemas import ActionType, ControlAction, GateResult, ValidationStatus
 from .graph.base import GraphBackend
 from .graph.networkx_backend import NetworkXBackend
 from .ingestion.dexpi_parser import DEXPIParseResult
 from .ingestion.topology_extractor import TopologyExtractor
+from .schemas import ActionType, ControlAction, GateResult, ValidationStatus
 
 
 @dataclass

@@ -15,9 +15,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 from .agent_demo import DemoAgent
-from .policy import PolicyConfig, policy_gate
 from .physics_pinn import PhysicsGateConfig, TankPINN, apply_actions_to_state, physics_gate
 from .plant_graph import PlantGraph
+from .policy import PolicyConfig, policy_gate
 from .schemas import Decision, PlantState, ValidationStatus
 
 if TYPE_CHECKING:

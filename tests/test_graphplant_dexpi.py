@@ -1,6 +1,6 @@
+from anstkit.graph.networkx_backend import NetworkXBackend
 from anstkit.ingestion.dexpi_parser import DEXPIParser
 from anstkit.plant_graph import GraphPlant
-from anstkit.graph.networkx_backend import NetworkXBackend
 from anstkit.schemas import ActionType, ControlAction, ValidationStatus
 
 

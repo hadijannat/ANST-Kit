@@ -10,9 +10,9 @@ from anstkit.agent_demo import DemoAgent
 from anstkit.audit.events import EventType
 from anstkit.audit.store import AuditStore
 from anstkit.orchestrator import TriadOrchestrator
-from anstkit.policy import PolicyConfig
 from anstkit.physics_pinn import PhysicsGateConfig, TankPINN, load_pinn, train_pinn
 from anstkit.plant_graph import PlantGraph
+from anstkit.policy import PolicyConfig
 from anstkit.schemas import PlantState
 
 from .schemas import (
