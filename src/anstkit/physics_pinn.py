@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -50,6 +50,7 @@ class PhysicsGateConfig:
     n_eval: int = 64
     h_max: float = 1.0
     residual_threshold: float = 5e-3
+    uncertainty_threshold: float | None = 0.05
 
 
 class TankPINN(nn.Module):
@@ -170,6 +171,21 @@ def load_pinn(weights_path: Path, device: str | None = None) -> TankPINN:
     return model
 
 
+def load_ensemble(
+    weights_paths: Iterable[Path],
+    device: str | None = None,
+    seed: int = 42,
+    ood_config: Optional["OODConfig"] = None,
+) -> "EnsemblePINN":
+    """Load an ensemble of PINN models from multiple weight files."""
+    paths = list(weights_paths)
+    ensemble = EnsemblePINN(n_models=len(paths), seed=seed, ood_config=ood_config)
+    ensemble.models = [load_pinn(path, device=device) for path in paths]
+    ensemble._compute_training_distribution()
+    ensemble.eval()
+    return ensemble
+
+
 def simulate_horizon(
     model: TankPINN,
     state: PlantState,
@@ -205,8 +221,10 @@ def simulate_horizon(
     return t_np, h, residual_mse
 
 
+
+
 def physics_gate(
-    model: TankPINN,
+    model: TankPINN | EnsemblePINN,
     state: PlantState,
     actions: list[ControlAction],
     cfg: PhysicsGateConfig | None = None,
@@ -223,7 +241,18 @@ def physics_gate(
         elif a.type == ActionType.SET_VALVE_OPENING:
             u_valve = a.value
 
-    t, h, residual_mse = simulate_horizon(model, state, u_pump, u_valve, cfg)
+    confidence = None
+    if isinstance(model, EnsemblePINN):
+        confidence = model.predict_with_uncertainty(
+            state,
+            actions,
+            horizon=cfg.horizon,
+            n_eval=cfg.n_eval,
+        )
+        h = confidence.prediction
+        residual_mse = confidence.residual_mse
+    else:
+        _, h, residual_mse = simulate_horizon(model, state, u_pump, u_valve, cfg)
 
     reasons = []
     if float(h.max()) > cfg.h_max + 1e-9:
@@ -233,6 +262,16 @@ def physics_gate(
     if residual_mse > cfg.residual_threshold:
         reasons.append(
             f"Physics residual too high: residual_mse={residual_mse:.4e} > threshold={cfg.residual_threshold:.4e}.")
+    if confidence is not None and cfg.uncertainty_threshold is not None:
+        unc_mean = float(confidence.epistemic_std)
+        if unc_mean > cfg.uncertainty_threshold:
+            reasons.append(
+                f"Ensemble uncertainty too high: mean(std(H))={unc_mean:.4e} > threshold={cfg.uncertainty_threshold:.4e}."
+            )
+        if confidence.is_ood:
+            reasons.append(
+                f"Input flagged OOD by ensemble: score={confidence.ood_score:.3f}."
+            )
 
     metrics = {
         "u_pump": float(u_pump),
@@ -243,11 +282,27 @@ def physics_gate(
         "horizon": cfg.horizon,
         "n_eval": cfg.n_eval,
     }
+    if confidence is not None:
+        metrics["uncertainty_mean"] = float(confidence.epistemic_std)
+        metrics["ood_score"] = float(confidence.ood_score)
+        metrics["ood_flag"] = bool(confidence.is_ood)
 
     return GateResult(
         status=ValidationStatus.PASS if not reasons else ValidationStatus.FAIL,
         reasons=reasons,
         metrics=metrics,
+        evidence=[
+            {
+                "trajectory_summary": {
+                    "h_max": float(h.max()),
+                    "h_min": float(h.min()),
+                    "residual_mse": float(residual_mse),
+                    "uncertainty_mean": metrics.get("uncertainty_mean"),
+                    "ood_score": metrics.get("ood_score"),
+                },
+                "inputs": {"u_pump": float(u_pump), "u_valve": float(u_valve)},
+            }
+        ],
     )
 
 
@@ -334,6 +389,18 @@ class EnsemblePINN:
         self.models: List[TankPINN] = []
         self._training_mean: Optional[np.ndarray] = None
         self._training_cov_inv: Optional[np.ndarray] = None
+
+    def eval(self) -> "EnsemblePINN":
+        """Set all ensemble models to eval mode."""
+        for model in self.models:
+            model.train(False)
+        return self
+
+    def to(self, device: torch.device) -> "EnsemblePINN":
+        """Move all ensemble models to a device."""
+        for model in self.models:
+            model.to(device)
+        return self
 
     def train_all(self, steps: int = 3000) -> None:
         """Train ensemble with different random seeds.

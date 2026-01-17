@@ -188,6 +188,12 @@ python -m anstkit benchmark --n 500 --seed 7
 python -m anstkit ablation --n 500 --seed 7 --output metrics/ablation.json
 ```
 
+### Export Audit + Evidence
+
+```bash
+python -m anstkit export-audit --session-id <session_id> --db-path audit.db --out metrics/audit_export.json
+```
+
 ### Train the PINN (Optional)
 
 ```bash
@@ -209,6 +215,8 @@ Comparison of triad configurations (500 trials, seed=7):
 
 > **Key Finding**: The full triad reduces the unsafe execution rate from 40% (unguarded) to 8.8%, with both gates contributing complementary safety layers.
 
+Physics guardrail evaluations now track **ensemble uncertainty** and **OOD flags** in addition to residual checks. See `anstkit.evaluation.metrics.PhysicsMetrics` for `uncertainty_ood_rate`.
+
 ---
 
 ## 🔌 API Reference
@@ -225,6 +233,8 @@ uvicorn anstkit.services.orchestrator_svc:app --host 0.0.0.0 --port 8000
 |--------|------|-------------|
 | `GET` | `/health` | Service health check |
 | `POST` | `/propose` | Submit goal for triad evaluation |
+| `GET` | `/audit/{session_id}` | Fetch full audit log for a session |
+| `GET` | `/evidence/{session_id}` | Export gate evidence for a session |
 
 ### Example Request
 
@@ -235,6 +245,13 @@ curl -X POST http://localhost:8000/propose \
     "goal": "increase throughput",
     "state": {"tank_level": 0.5, "pump_speed": 0.5, "valve_opening": 0.5}
   }'
+```
+
+Use the returned `session_id` to query audit/evidence:
+
+```bash
+curl http://localhost:8000/audit/<session_id>
+curl http://localhost:8000/evidence/<session_id>
 ```
 
 ---

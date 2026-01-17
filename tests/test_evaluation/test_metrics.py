@@ -25,14 +25,33 @@ def test_structural_metrics_empty_results():
 
 def test_physics_metrics_computes_rates():
     results = [
-        {"overflow": True, "underflow": False, "residual_ood": False, "latency_ms": 10.0},
-        {"overflow": False, "underflow": True, "residual_ood": False, "latency_ms": 20.0},
-        {"overflow": False, "underflow": False, "residual_ood": True, "latency_ms": 15.0},
+        {
+            "overflow": True,
+            "underflow": False,
+            "residual_ood": False,
+            "uncertainty_ood": False,
+            "latency_ms": 10.0,
+        },
+        {
+            "overflow": False,
+            "underflow": True,
+            "residual_ood": False,
+            "uncertainty_ood": True,
+            "latency_ms": 20.0,
+        },
+        {
+            "overflow": False,
+            "underflow": False,
+            "residual_ood": True,
+            "uncertainty_ood": False,
+            "latency_ms": 15.0,
+        },
     ]
     metrics = PhysicsMetrics.from_results(results)
     assert metrics.overflow_rate == pytest.approx(1 / 3)
     assert metrics.underflow_rate == pytest.approx(1 / 3)
     assert metrics.residual_ood_rate == pytest.approx(1 / 3)
+    assert metrics.uncertainty_ood_rate == pytest.approx(1 / 3)
     assert metrics.mean_inference_latency_ms == pytest.approx(15.0)
     assert metrics.total_checks == 3
 
@@ -42,5 +61,6 @@ def test_physics_metrics_empty_results():
     assert metrics.overflow_rate == 0.0
     assert metrics.underflow_rate == 0.0
     assert metrics.residual_ood_rate == 0.0
+    assert metrics.uncertainty_ood_rate == 0.0
     assert metrics.mean_inference_latency_ms == 0.0
     assert metrics.total_checks == 0

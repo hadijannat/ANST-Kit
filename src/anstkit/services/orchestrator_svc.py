@@ -1,6 +1,5 @@
 """FastAPI orchestrator service with audit integration."""
 
-import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
@@ -8,17 +7,21 @@ from typing import Optional
 from fastapi import FastAPI
 
 from anstkit.agent_demo import DemoAgent
-from anstkit.audit.events import AuditEvent, EventType
+from anstkit.audit.events import EventType
 from anstkit.audit.store import AuditStore
 from anstkit.orchestrator import TriadOrchestrator
+from anstkit.policy import PolicyConfig
 from anstkit.physics_pinn import PhysicsGateConfig, TankPINN, load_pinn, train_pinn
 from anstkit.plant_graph import PlantGraph
 from anstkit.schemas import PlantState
 
 from .schemas import (
     ActionResponse,
+    AuditEventDetailResponse,
     AuditEventResponse,
+    AuditQueryResponse,
     DecisionResponse,
+    EvidenceResponse,
     HealthResponse,
     ProposeRequest,
     ProposeResponse,
@@ -80,17 +83,6 @@ def propose(request: ProposeRequest):
 
     Returns the decision with an audit trail of events.
     """
-    session_id = str(uuid.uuid4())
-
-    # Log proposal submitted
-    audit_store.append(
-        AuditEvent(
-            event_type=EventType.PROPOSAL_SUBMITTED,
-            session_id=session_id,
-            payload={"goal": request.goal},
-        )
-    )
-
     # Convert request state to PlantState
     state = PlantState(
         tank_level=request.state.tank_level,
@@ -100,67 +92,27 @@ def propose(request: ProposeRequest):
 
     # Create orchestrator and step
     physics_cfg = PhysicsGateConfig(horizon=2.0, n_eval=32)
+    policy_cfg = PolicyConfig()
     orch = TriadOrchestrator(
         agent=agent,
         plant=plant,
         pinn=pinn,
         state=state,
         physics_cfg=physics_cfg,
+        policy_cfg=policy_cfg,
+        audit_store=audit_store,
     )
 
     decision = orch.step(request.goal)
 
-    # Log gate results
-    if decision.structural.status.value == "pass":
-        audit_store.append(
-            AuditEvent(
-                event_type=EventType.STRUCTURAL_GATE_PASS,
-                session_id=session_id,
-                payload={"reasons": decision.structural.reasons},
-            )
-        )
-    else:
-        audit_store.append(
-            AuditEvent(
-                event_type=EventType.STRUCTURAL_GATE_FAIL,
-                session_id=session_id,
-                payload={"reasons": decision.structural.reasons},
-            )
-        )
-
-    if decision.physics.status.value == "pass":
-        audit_store.append(
-            AuditEvent(
-                event_type=EventType.PHYSICS_GATE_PASS,
-                session_id=session_id,
-                payload={"reasons": decision.physics.reasons},
-            )
-        )
-    else:
-        audit_store.append(
-            AuditEvent(
-                event_type=EventType.PHYSICS_GATE_FAIL,
-                session_id=session_id,
-                payload={"reasons": decision.physics.reasons},
-            )
-        )
-
-    # Log final decision
-    audit_store.append(
-        AuditEvent(
-            event_type=EventType.DECISION_MADE,
-            session_id=session_id,
-            payload={"approved": decision.approved},
-        )
-    )
-
     # Query all events for this session
-    events = audit_store.query(session_id=session_id)
+    events = audit_store.query(session_id=orch.session_id)
 
     # Build response
     return ProposeResponse(
         decision=DecisionResponse(
             approved=decision.approved,
+            policy_status=decision.policy.status.value if decision.policy else None,
             structural_status=decision.structural.status.value,
             physics_status=decision.physics.status.value,
             actions=[
@@ -171,7 +123,14 @@ def propose(request: ProposeRequest):
                 )
                 for a in decision.final_actions
             ],
-            reasons=decision.structural.reasons + decision.physics.reasons,
+            reasons=(
+                (decision.policy.reasons if decision.policy else [])
+                + decision.structural.reasons
+                + decision.physics.reasons
+            ),
+            policy_evidence=decision.policy.evidence if decision.policy else [],
+            structural_evidence=decision.structural.evidence,
+            physics_evidence=decision.physics.evidence,
         ),
         audit_events=[
             AuditEventResponse(
@@ -181,5 +140,51 @@ def propose(request: ProposeRequest):
             )
             for e in events
         ],
+        session_id=orch.session_id,
+    )
+
+
+@app.get("/audit/{session_id}", response_model=AuditQueryResponse)
+def audit_session(session_id: str, limit: int = 1000):
+    """Return detailed audit events for a session."""
+    events = audit_store.query(session_id=session_id, limit=limit)
+    return AuditQueryResponse(
         session_id=session_id,
+        events=[
+            AuditEventDetailResponse(
+                event_id=e.event_id,
+                event_type=e.event_type.value,
+                timestamp=e.timestamp.isoformat(),
+                payload=e.payload,
+                parent_event_id=e.parent_event_id,
+            )
+            for e in events
+        ],
+    )
+
+
+@app.get("/evidence/{session_id}", response_model=EvidenceResponse)
+def evidence_session(session_id: str, limit: int = 1000):
+    """Return aggregated gate evidence for a session."""
+    events = audit_store.query(session_id=session_id, limit=limit)
+    policy_evidence = []
+    structural_evidence = []
+    physics_evidence = []
+
+    for event in events:
+        if event.event_type in {EventType.POLICY_GATE_PASS, EventType.POLICY_GATE_FAIL}:
+            policy_evidence.extend(event.payload.get("evidence", []))
+        if event.event_type in {
+            EventType.STRUCTURAL_GATE_PASS,
+            EventType.STRUCTURAL_GATE_FAIL,
+        }:
+            structural_evidence.extend(event.payload.get("evidence", []))
+        if event.event_type in {EventType.PHYSICS_GATE_PASS, EventType.PHYSICS_GATE_FAIL}:
+            physics_evidence.extend(event.payload.get("evidence", []))
+
+    return EvidenceResponse(
+        session_id=session_id,
+        policy_evidence=policy_evidence,
+        structural_evidence=structural_evidence,
+        physics_evidence=physics_evidence,
     )

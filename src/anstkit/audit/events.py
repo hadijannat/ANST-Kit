@@ -17,6 +17,8 @@ class EventType(str, Enum):
     # Gate results
     STRUCTURAL_GATE_PASS = "structural_gate_pass"
     STRUCTURAL_GATE_FAIL = "structural_gate_fail"
+    POLICY_GATE_PASS = "policy_gate_pass"
+    POLICY_GATE_FAIL = "policy_gate_fail"
     PHYSICS_GATE_PASS = "physics_gate_pass"
     PHYSICS_GATE_FAIL = "physics_gate_fail"
 

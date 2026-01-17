@@ -33,6 +33,11 @@ class ControlAction(BaseModel):
     type: ActionType
     target_id: str
     value: float
+    units: Optional[str] = None
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+    requires_approval: bool = False
+    evidence_refs: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -68,12 +73,14 @@ class GateResult(BaseModel):
     status: ValidationStatus
     reasons: List[str] = Field(default_factory=list)
     metrics: Dict[str, Any] = Field(default_factory=dict)
+    evidence: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class Decision(BaseModel):
     """Combined decision after both gates."""
 
     approved: bool
+    policy: Optional[GateResult] = None
     structural: GateResult
     physics: GateResult
     final_actions: List[ControlAction] = Field(default_factory=list)

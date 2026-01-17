@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import numpy as np
 
 from .agent_demo import DemoAgent
+from .audit.events import EventType
+from .audit.store import AuditStore
 from .evaluation.ablations import AblationConfig, AblationRunner
 from .orchestrator import TriadOrchestrator
 from .physics_pinn import PhysicsGateConfig, load_pinn, physics_gate, train_pinn
@@ -163,6 +166,61 @@ def cmd_ablation(args: argparse.Namespace) -> None:
         print(f"\nResults saved to {args.output}")
 
 
+def _collect_evidence(events):
+    policy_evidence = []
+    structural_evidence = []
+    physics_evidence = []
+    for event in events:
+        if event.event_type in {EventType.POLICY_GATE_PASS, EventType.POLICY_GATE_FAIL}:
+            policy_evidence.extend(event.payload.get("evidence", []))
+        if event.event_type in {
+            EventType.STRUCTURAL_GATE_PASS,
+            EventType.STRUCTURAL_GATE_FAIL,
+        }:
+            structural_evidence.extend(event.payload.get("evidence", []))
+        if event.event_type in {EventType.PHYSICS_GATE_PASS, EventType.PHYSICS_GATE_FAIL}:
+            physics_evidence.extend(event.payload.get("evidence", []))
+    return {
+        "policy": policy_evidence,
+        "structural": structural_evidence,
+        "physics": physics_evidence,
+    }
+
+
+def cmd_export_audit(args: argparse.Namespace) -> None:
+    """Export audit events and gate evidence to JSON."""
+    store = AuditStore(args.db_path)
+    events = store.query(session_id=args.session_id, limit=args.limit)
+    payload = {
+        "session_id": args.session_id,
+        "events": [
+            {
+                "event_id": e.event_id,
+                "event_type": e.event_type.value,
+                "timestamp": e.timestamp.isoformat(),
+                "parent_event_id": e.parent_event_id,
+                "payload": e.payload,
+            }
+            for e in events
+        ],
+        "evidence": _collect_evidence(events),
+    }
+
+    if args.events_only:
+        payload = {"session_id": args.session_id, "events": payload["events"]}
+    elif args.evidence_only:
+        payload = {"session_id": args.session_id, "evidence": payload["evidence"]}
+
+    if args.out:
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w") as f:
+            json.dump(payload, f, indent=2)
+        print(f"Exported audit data to {out_path}")
+    else:
+        print(json.dumps(payload, indent=2))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="anstkit")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -190,6 +248,15 @@ def main() -> None:
     p_ablation.add_argument("--seed", type=int, default=7, help="Random seed")
     p_ablation.add_argument("--output", type=str, help="Output JSON file for results")
     p_ablation.set_defaults(func=cmd_ablation)
+
+    p_export = sub.add_parser("export-audit", help="Export audit events and evidence to JSON")
+    p_export.add_argument("--session-id", required=True, help="Session ID to export")
+    p_export.add_argument("--db-path", default="audit.db", help="Path to audit SQLite DB")
+    p_export.add_argument("--limit", type=int, default=1000, help="Max events to export")
+    p_export.add_argument("--out", type=str, help="Output JSON file (defaults to stdout)")
+    p_export.add_argument("--events-only", action="store_true", help="Export only audit events")
+    p_export.add_argument("--evidence-only", action="store_true", help="Export only gate evidence")
+    p_export.set_defaults(func=cmd_export_audit)
 
     args = parser.parse_args()
     args.func(args)

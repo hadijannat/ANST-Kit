@@ -14,11 +14,15 @@ agent cannot hallucinate assets or connectivity.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Tuple, Type
 
 import networkx as nx
 
 from .schemas import ActionType, ControlAction, GateResult, ValidationStatus
+from .graph.base import GraphBackend
+from .graph.networkx_backend import NetworkXBackend
+from .ingestion.dexpi_parser import DEXPIParseResult
+from .ingestion.topology_extractor import TopologyExtractor
 
 
 @dataclass
@@ -84,8 +88,16 @@ class PlantGraph:
 
     def structural_gate(self, actions: List[ControlAction]) -> GateResult:
         all_reasons: List[str] = []
+        evidence: List[dict] = []
         for a in actions:
             ok, reasons = self.validate_action(a)
+            evidence.append(
+                {
+                    "action": a.model_dump(),
+                    "ok": ok,
+                    "reasons": reasons,
+                }
+            )
             if not ok:
                 all_reasons.extend(reasons)
 
@@ -93,4 +105,51 @@ class PlantGraph:
             status=ValidationStatus.PASS if not all_reasons else ValidationStatus.FAIL,
             reasons=all_reasons,
             metrics={"n_actions": len(actions)},
+            evidence=evidence,
         )
+
+
+class GraphPlant:
+    """Plant wrapper around a GraphBackend (NetworkX, GraphRAG, etc.)."""
+
+    def __init__(self, backend: GraphBackend, reference_node: str):
+        self.backend = backend
+        self.reference_node = reference_node
+
+    @classmethod
+    def from_dexpi(
+        cls,
+        dexpi_data: DEXPIParseResult,
+        backend_class: Type[GraphBackend] = NetworkXBackend,
+    ) -> "GraphPlant":
+        extractor = TopologyExtractor()
+        backend = extractor.to_graph_backend(dexpi_data, backend_class)
+        reference = extractor.get_tank_reference_node(backend)
+        if not reference:
+            raise ValueError("No tank reference node found in DEXPI data.")
+        return cls(backend=backend, reference_node=reference)
+
+    def structural_gate(self, actions: List[ControlAction]) -> GateResult:
+        result = self.backend.structural_gate(actions, self.reference_node)
+        evidence: List[dict] = []
+
+        if hasattr(self.backend, "get_structural_evidence"):
+            for action in actions:
+                evidence.append(
+                    {
+                        "action": action.model_dump(),
+                        "evidence": self.backend.get_structural_evidence(
+                            action.target_id, self.reference_node
+                        ),
+                    }
+                )
+
+        if evidence:
+            return GateResult(
+                status=result.status,
+                reasons=result.reasons,
+                metrics=result.metrics,
+                evidence=evidence,
+            )
+
+        return result

@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 from .agent_demo import DemoAgent
+from .policy import PolicyConfig, policy_gate
 from .physics_pinn import PhysicsGateConfig, TankPINN, apply_actions_to_state, physics_gate
 from .plant_graph import PlantGraph
 from .schemas import Decision, PlantState, ValidationStatus
@@ -48,7 +49,9 @@ class TriadOrchestrator:
         state: PlantState | None = None,
         cfg: OrchestratorConfig | None = None,
         physics_cfg: PhysicsGateConfig | None = None,
+        policy_cfg: PolicyConfig | None = None,
         audit_store: Optional["AuditStore"] = None,
+        session_id: Optional[str] = None,
     ):
         self.agent = agent
         self.plant = plant
@@ -56,8 +59,9 @@ class TriadOrchestrator:
         self.state = state or PlantState()
         self.cfg = cfg or OrchestratorConfig()
         self.physics_cfg = physics_cfg or PhysicsGateConfig()
+        self.policy_cfg = policy_cfg
         self.audit_store = audit_store
-        self._session_id = str(uuid.uuid4())
+        self._session_id = session_id or str(uuid.uuid4())
 
     @property
     def session_id(self) -> str:
@@ -92,13 +96,44 @@ class TriadOrchestrator:
         # Log proposal
         self._log_event(
             "proposal_submitted",
-            {"goal": goal, "actions": [a.model_dump() for a in proposal.actions]},
+            {
+                "goal": goal,
+                "state": self.state.model_dump(),
+                "actions": [a.model_dump() for a in proposal.actions],
+            },
         )
 
         last_struct = None
         last_phys = None
+        last_policy = None
 
         for iteration in range(self.cfg.max_iterations):
+            if self.policy_cfg is not None:
+                policy = policy_gate(proposal.actions, self.state, self.policy_cfg)
+                last_policy = policy
+                if policy.status == ValidationStatus.PASS:
+                    self._log_event(
+                        "policy_gate_pass",
+                        {
+                            "iteration": iteration,
+                            "reasons": policy.reasons,
+                            "metrics": policy.metrics,
+                            "evidence": policy.evidence,
+                        },
+                    )
+                else:
+                    self._log_event(
+                        "policy_gate_fail",
+                        {
+                            "iteration": iteration,
+                            "reasons": policy.reasons,
+                            "metrics": policy.metrics,
+                            "evidence": policy.evidence,
+                        },
+                    )
+                    proposal = self.agent.revise(proposal, policy.reasons, self.state)
+                    continue
+
             struct = self.plant.structural_gate(proposal.actions)
             last_struct = struct
 
@@ -106,12 +141,22 @@ class TriadOrchestrator:
             if struct.status == ValidationStatus.PASS:
                 self._log_event(
                     "structural_gate_pass",
-                    {"iteration": iteration, "reasons": struct.reasons},
+                    {
+                        "iteration": iteration,
+                        "reasons": struct.reasons,
+                        "metrics": struct.metrics,
+                        "evidence": struct.evidence,
+                    },
                 )
             else:
                 self._log_event(
                     "structural_gate_fail",
-                    {"iteration": iteration, "reasons": struct.reasons},
+                    {
+                        "iteration": iteration,
+                        "reasons": struct.reasons,
+                        "metrics": struct.metrics,
+                        "evidence": struct.evidence,
+                    },
                 )
                 proposal = self.agent.revise(proposal, struct.reasons, self.state)
                 continue
@@ -123,12 +168,22 @@ class TriadOrchestrator:
             if phys.status == ValidationStatus.PASS:
                 self._log_event(
                     "physics_gate_pass",
-                    {"iteration": iteration, "reasons": phys.reasons, "metrics": phys.metrics},
+                    {
+                        "iteration": iteration,
+                        "reasons": phys.reasons,
+                        "metrics": phys.metrics,
+                        "evidence": phys.evidence,
+                    },
                 )
             else:
                 self._log_event(
                     "physics_gate_fail",
-                    {"iteration": iteration, "reasons": phys.reasons, "metrics": phys.metrics},
+                    {
+                        "iteration": iteration,
+                        "reasons": phys.reasons,
+                        "metrics": phys.metrics,
+                        "evidence": phys.evidence,
+                    },
                 )
                 proposal = self.agent.revise(proposal, phys.reasons, self.state)
                 continue
@@ -138,6 +193,7 @@ class TriadOrchestrator:
 
             decision = Decision(
                 approved=True,
+                policy=last_policy,
                 structural=struct,
                 physics=phys,
                 final_actions=proposal.actions,
@@ -146,7 +202,13 @@ class TriadOrchestrator:
             # Log decision
             self._log_event(
                 "decision_made",
-                {"approved": True, "actions": [a.model_dump() for a in proposal.actions]},
+                {
+                    "approved": True,
+                    "actions": [a.model_dump() for a in proposal.actions],
+                    "policy_status": decision.policy.status.value if decision.policy else None,
+                    "structural_status": decision.structural.status.value,
+                    "physics_status": decision.physics.status.value,
+                },
             )
 
             return decision
@@ -161,9 +223,18 @@ class TriadOrchestrator:
                 reasons=["Physics gate not reached."],
                 metrics={},
             )
+        if last_struct is None:
+            from .schemas import GateResult
+
+            last_struct = GateResult(
+                status=ValidationStatus.FAIL,
+                reasons=["Structural gate not reached."],
+                metrics={},
+            )
 
         decision = Decision(
             approved=False,
+            policy=last_policy,
             structural=last_struct,
             physics=last_phys,
             final_actions=[],
@@ -172,7 +243,13 @@ class TriadOrchestrator:
         # Log rejection
         self._log_event(
             "decision_made",
-            {"approved": False, "reason": "Failed to converge to safe plan"},
+            {
+                "approved": False,
+                "reason": "Failed to converge to safe plan",
+                "policy_status": decision.policy.status.value if decision.policy else None,
+                "structural_status": decision.structural.status.value,
+                "physics_status": decision.physics.status.value,
+            },
         )
 
         return decision

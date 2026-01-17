@@ -54,12 +54,14 @@ class PhysicsMetrics:
     - overflow: Predicted tank level exceeds max
     - underflow: Predicted tank level goes negative
     - residual_ood: Physics residual indicates out-of-distribution
+    - uncertainty_ood: Ensemble uncertainty indicates out-of-distribution
     - latency: Inference time for physics predictions
     """
 
     overflow_rate: float
     underflow_rate: float
     residual_ood_rate: float
+    uncertainty_ood_rate: float
     mean_inference_latency_ms: float
     total_checks: int
 
@@ -75,12 +77,13 @@ class PhysicsMetrics:
         """
         n = len(results)
         if n == 0:
-            return cls(0.0, 0.0, 0.0, 0.0, 0)
+            return cls(0.0, 0.0, 0.0, 0.0, 0.0, 0)
         latencies = [r.get("latency_ms", 0) for r in results]
         return cls(
             overflow_rate=sum(1 for r in results if r.get("overflow")) / n,
             underflow_rate=sum(1 for r in results if r.get("underflow")) / n,
             residual_ood_rate=sum(1 for r in results if r.get("residual_ood")) / n,
+            uncertainty_ood_rate=sum(1 for r in results if r.get("uncertainty_ood")) / n,
             mean_inference_latency_ms=sum(latencies) / n if latencies else 0.0,
             total_checks=n,
         )
