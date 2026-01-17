@@ -1,7 +1,8 @@
 """API request/response schemas for the orchestrator service."""
 
+from typing import List
+
 from pydantic import BaseModel
-from typing import List, Dict, Any
 
 
 class StateRequest(BaseModel):

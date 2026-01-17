@@ -1,12 +1,8 @@
 """Tests for DEXPI XML parsing."""
 
-import pytest
-from io import StringIO
-from pathlib import Path
 
-from anstkit.ingestion.dexpi_parser import DEXPIParser, DEXPIEquipment, DEXPIPipingSegment
 from anstkit.graph.base import NodeKind
-
+from anstkit.ingestion.dexpi_parser import DEXPIParser
 
 # Sample DEXPI-like XML for testing
 SAMPLE_DEXPI_XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -100,8 +96,8 @@ class TestTopologyExtractor:
 
     def test_extract_to_graph_backend(self):
         """Can convert DEXPI parse result to graph backend."""
-        from anstkit.ingestion.topology_extractor import TopologyExtractor
         from anstkit.graph.networkx_backend import NetworkXBackend
+        from anstkit.ingestion.topology_extractor import TopologyExtractor
 
         parser = DEXPIParser()
         dexpi_result = parser.parse_string(SAMPLE_DEXPI_XML)
@@ -117,8 +113,8 @@ class TestTopologyExtractor:
 
     def test_node_kinds_mapped_correctly(self):
         """Equipment classes map to NodeKind correctly."""
-        from anstkit.ingestion.topology_extractor import TopologyExtractor
         from anstkit.graph.networkx_backend import NetworkXBackend
+        from anstkit.ingestion.topology_extractor import TopologyExtractor
 
         parser = DEXPIParser()
         dexpi_result = parser.parse_string(SAMPLE_DEXPI_XML)
@@ -132,8 +128,8 @@ class TestTopologyExtractor:
 
     def test_edges_created_from_piping(self):
         """Piping segments create graph edges."""
-        from anstkit.ingestion.topology_extractor import TopologyExtractor
         from anstkit.graph.networkx_backend import NetworkXBackend
+        from anstkit.ingestion.topology_extractor import TopologyExtractor
 
         parser = DEXPIParser()
         dexpi_result = parser.parse_string(SAMPLE_DEXPI_XML)
@@ -148,8 +144,8 @@ class TestTopologyExtractor:
 
     def test_descriptions_preserved(self):
         """Equipment descriptions are stored as node attributes."""
-        from anstkit.ingestion.topology_extractor import TopologyExtractor
         from anstkit.graph.networkx_backend import NetworkXBackend
+        from anstkit.ingestion.topology_extractor import TopologyExtractor
 
         parser = DEXPIParser()
         dexpi_result = parser.parse_string(SAMPLE_DEXPI_XML)

@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+"></a>
-  <a href="#"><img src="https://img.shields.io/badge/tests-71%20passing-brightgreen.svg" alt="Tests"></a>
+  <a href="https://github.com/hadijannat/ANST-Kit/actions/workflows/ci.yml"><img src="https://github.com/hadijannat/ANST-Kit/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="#"><img src="https://img.shields.io/badge/NIST%20RMF-Compliant-orange.svg" alt="NIST RMF"></a>
 </p>

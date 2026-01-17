@@ -8,8 +8,8 @@ switching between different graph implementations:
 """
 
 from .base import GraphBackend, NodeKind
-from .networkx_backend import NetworkXBackend
 from .graphrag_backend import GraphRAGBackend, GraphRAGConfig
+from .networkx_backend import NetworkXBackend
 
 __all__ = [
     "GraphBackend",

@@ -7,11 +7,11 @@ the ANST-Kit structural validation system.
 
 from __future__ import annotations
 
-from typing import Dict, Type
 import logging
+from typing import Dict, Type
 
 from anstkit.graph.base import GraphBackend, NodeKind
-from anstkit.ingestion.dexpi_parser import DEXPIParseResult, DEXPIEquipment
+from anstkit.ingestion.dexpi_parser import DEXPIParseResult
 
 logger = logging.getLogger(__name__)
 

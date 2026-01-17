@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 from anstkit.schemas import ActionType, ControlAction, GateResult, ValidationStatus
 

@@ -1,8 +1,9 @@
 """Tests for PINN uncertainty quantification via ensemble."""
 
 import pytest
+
 from anstkit.physics_pinn import EnsemblePINN, PINNConfidence
-from anstkit.schemas import PlantState, ControlAction, ActionType
+from anstkit.schemas import ActionType, ControlAction, PlantState
 
 
 def test_ensemble_provides_uncertainty():

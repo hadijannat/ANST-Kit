@@ -12,7 +12,7 @@ Replace this module with a real LLM agent in production.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 
 import numpy as np
 

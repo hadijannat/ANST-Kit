@@ -17,25 +17,25 @@ Usage:
 
 from __future__ import annotations
 
+import importlib.util
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
-import logging
+
+from anstkit.schemas import ControlAction, GateResult
 
 from .base import GraphBackend, NodeKind
 from .networkx_backend import NetworkXBackend
-from anstkit.schemas import ControlAction, GateResult
 
 logger = logging.getLogger(__name__)
 
 # Check if graphrag is available
-try:
-    import pandas as pd
-    from graphrag.config.create_graphrag_config import create_graphrag_config
+GRAPHRAG_AVAILABLE = importlib.util.find_spec("graphrag") is not None
 
-    GRAPHRAG_AVAILABLE = True
-except ImportError:
-    GRAPHRAG_AVAILABLE = False
+if GRAPHRAG_AVAILABLE:
+    import pandas as pd
+else:
     pd = None
 
 
@@ -284,7 +284,6 @@ class GraphRAGBackend(GraphBackend):
 
         communities = []
         # Group by community ID at the configured level
-        level = self._config.community_level
         try:
             for _, group in self._communities_df.groupby("community"):
                 members = group.get("title", group.get("id", [])).tolist()

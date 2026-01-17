@@ -1,9 +1,9 @@
 """Append-only audit event store with SQLite backend."""
 
-from typing import List, Optional
 import json
 import sqlite3
 from datetime import datetime
+from typing import List, Optional
 
 from .events import AuditEvent, EventType
 

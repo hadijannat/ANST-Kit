@@ -1,5 +1,4 @@
-import pytest
-from anstkit.evaluation.scenarios import ScenarioGenerator, ScenarioType, Scenario
+from anstkit.evaluation.scenarios import ScenarioGenerator, ScenarioType
 from anstkit.schemas import PlantState
 
 

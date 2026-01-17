@@ -1,7 +1,8 @@
 """Tests for graph backend implementations."""
 
-import pytest
 from abc import ABC
+
+import pytest
 
 from anstkit.graph.base import GraphBackend, NodeKind
 from anstkit.graph.networkx_backend import NetworkXBackend

@@ -1,28 +1,28 @@
 """FastAPI orchestrator service with audit integration."""
 
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
-import uuid
 
 from fastapi import FastAPI
 
-from anstkit.orchestrator import TriadOrchestrator, OrchestratorConfig
 from anstkit.agent_demo import DemoAgent
-from anstkit.plant_graph import PlantGraph
-from anstkit.physics_pinn import PhysicsGateConfig, TankPINN, load_pinn, train_pinn
-from anstkit.schemas import PlantState
-from anstkit.audit.store import AuditStore
 from anstkit.audit.events import AuditEvent, EventType
+from anstkit.audit.store import AuditStore
+from anstkit.orchestrator import TriadOrchestrator
+from anstkit.physics_pinn import PhysicsGateConfig, TankPINN, load_pinn, train_pinn
+from anstkit.plant_graph import PlantGraph
+from anstkit.schemas import PlantState
+
 from .schemas import (
-    ProposeRequest,
-    ProposeResponse,
-    DecisionResponse,
     ActionResponse,
     AuditEventResponse,
+    DecisionResponse,
     HealthResponse,
+    ProposeRequest,
+    ProposeResponse,
 )
-
 
 # Global components (initialized in lifespan)
 agent: Optional[DemoAgent] = None

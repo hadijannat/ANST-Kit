@@ -1,12 +1,14 @@
-import pytest
-from anstkit.orchestrator import TriadOrchestrator
-from anstkit.audit.store import AuditStore
-from anstkit.audit.events import EventType
-from anstkit.agent_demo import DemoAgent
-from anstkit.plant_graph import PlantGraph
-from anstkit.physics_pinn import load_pinn, train_pinn
-from anstkit.schemas import PlantState
 from pathlib import Path
+
+import pytest
+
+from anstkit.agent_demo import DemoAgent
+from anstkit.audit.events import EventType
+from anstkit.audit.store import AuditStore
+from anstkit.orchestrator import TriadOrchestrator
+from anstkit.physics_pinn import load_pinn, train_pinn
+from anstkit.plant_graph import PlantGraph
+from anstkit.schemas import PlantState
 
 
 @pytest.fixture
@@ -32,7 +34,7 @@ def test_orchestrator_emits_audit_events(pinn):
         audit_store=store,
     )
 
-    decision = orch.step("increase throughput")
+    orch.step("increase throughput")
 
     events = store.query(session_id=orch.session_id)
     event_types = {e.event_type for e in events}
@@ -54,7 +56,7 @@ def test_orchestrator_logs_gate_results(pinn):
         audit_store=store,
     )
 
-    decision = orch.step("stabilize level")
+    orch.step("stabilize level")
     events = store.query(session_id=orch.session_id)
     event_types = {e.event_type for e in events}
 

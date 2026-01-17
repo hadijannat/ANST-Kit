@@ -1,5 +1,6 @@
 import pytest
-from anstkit.evaluation.metrics import StructuralMetrics, PhysicsMetrics
+
+from anstkit.evaluation.metrics import PhysicsMetrics, StructuralMetrics
 
 
 def test_structural_metrics_computes_rates():

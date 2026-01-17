@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional
 
-from anstkit.schemas import PlantState, ControlAction
+from anstkit.schemas import ControlAction, PlantState
 
 
 class DeploymentMode(str, Enum):

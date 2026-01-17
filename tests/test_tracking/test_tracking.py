@@ -1,7 +1,6 @@
 """Tests for MLflow experiment tracking."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 def test_training_tracker_logs_params():
@@ -34,8 +33,9 @@ def test_training_tracker_logs_metrics():
 
 def test_training_tracker_logs_artifact():
     """Verify tracker logs artifacts (model files)."""
-    from anstkit.tracking import TrainingTracker
     from pathlib import Path
+
+    from anstkit.tracking import TrainingTracker
 
     with patch("mlflow.log_artifact") as mock_log:
         with patch("mlflow.set_experiment"):
@@ -49,10 +49,9 @@ def test_training_tracker_logs_artifact():
 
 def test_tracker_works_without_mlflow():
     """Verify graceful degradation when MLflow is not available."""
-    from anstkit.tracking import TrainingTracker
-
     # Force MLFLOW_AVAILABLE to False
     import anstkit.tracking as tracking_module
+    from anstkit.tracking import TrainingTracker
     original = tracking_module.MLFLOW_AVAILABLE
 
     try:

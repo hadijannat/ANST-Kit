@@ -7,7 +7,7 @@ Supported formats:
 - DEXPI XML (Data Exchange in Process Industry - ISO 15926)
 """
 
-from .dexpi_parser import DEXPIParser, DEXPIParseResult, DEXPIEquipment, DEXPIPipingSegment
+from .dexpi_parser import DEXPIEquipment, DEXPIParser, DEXPIParseResult, DEXPIPipingSegment
 from .topology_extractor import TopologyExtractor
 
 __all__ = [

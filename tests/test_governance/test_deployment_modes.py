@@ -1,10 +1,9 @@
-import pytest
 from anstkit.governance.deployment_modes import (
     DeploymentMode,
     ModeController,
     ShadowResult,
 )
-from anstkit.schemas import PlantState, ControlAction, ActionType
+from anstkit.schemas import ActionType, ControlAction, PlantState
 
 
 def test_shadow_mode_logs_without_executing():
@@ -15,8 +14,8 @@ def test_shadow_mode_logs_without_executing():
     result = controller.process(state, actions, approved=True)
 
     assert isinstance(result, ShadowResult)
-    assert result.would_execute == True
-    assert result.actually_executed == False
+    assert result.would_execute
+    assert not result.actually_executed
 
 
 def test_guarded_mode_requires_human_approval():
@@ -26,8 +25,8 @@ def test_guarded_mode_requires_human_approval():
 
     result = controller.process(state, actions, approved=True, human_confirmed=False)
 
-    assert result.actually_executed == False
-    assert result.awaiting_confirmation == True
+    assert not result.actually_executed
+    assert result.awaiting_confirmation
 
 
 def test_expanded_mode_auto_executes_approved():
@@ -37,7 +36,7 @@ def test_expanded_mode_auto_executes_approved():
 
     result = controller.process(state, actions, approved=True)
 
-    assert result.actually_executed == True
+    assert result.actually_executed
 
 
 def test_guarded_mode_executes_with_human_confirmation():
@@ -47,8 +46,8 @@ def test_guarded_mode_executes_with_human_confirmation():
 
     result = controller.process(state, actions, approved=True, human_confirmed=True)
 
-    assert result.actually_executed == True
-    assert result.awaiting_confirmation == False
+    assert result.actually_executed
+    assert not result.awaiting_confirmation
 
 
 def test_expanded_mode_rejects_unapproved():
@@ -58,6 +57,6 @@ def test_expanded_mode_rejects_unapproved():
 
     result = controller.process(state, actions, approved=False)
 
-    assert result.actually_executed == False
-    assert result.would_execute == False
+    assert not result.actually_executed
+    assert not result.would_execute
     assert result.rejection_reason == "Triad rejected actions"

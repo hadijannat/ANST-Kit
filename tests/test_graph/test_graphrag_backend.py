@@ -4,12 +4,8 @@ These tests verify the GraphRAG backend interface. Full integration tests
 require graphrag to be installed and configured.
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
-from pathlib import Path
 
 from anstkit.graph.base import NodeKind
-from anstkit.graph.networkx_backend import NetworkXBackend
 from anstkit.schemas import ActionType, ControlAction, ValidationStatus
 
 
@@ -18,7 +14,6 @@ class TestGraphRAGBackendCore:
 
     def test_graphrag_backend_import(self):
         """GraphRAGBackend can be imported (even without graphrag installed)."""
-        from anstkit.graph.graphrag_backend import GraphRAGBackend
 
     def test_graphrag_backend_with_networkx_fallback(self):
         """GraphRAGBackend works with NetworkX fallback when no index."""

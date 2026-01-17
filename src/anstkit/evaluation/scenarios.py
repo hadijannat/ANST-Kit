@@ -8,10 +8,10 @@ Generates test scenarios across three categories:
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from enum import Enum
 from typing import List
-import random
 
 from anstkit.schemas import PlantState
 
