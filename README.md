@@ -1,72 +1,56 @@
 # ANST-Kit
 
-**Agentic Neuro-Symbolic Twin Toolkit**
+<p align="center">
+  <img src="assets/hero_banner.png" alt="ANST-Kit: Agentic Neuro-Symbolic Twin Toolkit" width="100%">
+</p>
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-71%20passing-brightgreen.svg)](#)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<p align="center">
+  <strong>Triadic Runtime Assurance for Bounded Industrial Autonomy</strong>
+</p>
 
-A **triadic runtime assurance system** for bounded industrial autonomy. An untrusted agent (Brain) proposes actions that are validated by a structural gate (Map) and physics gate (Guardrail) before execution.
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        TRIAD ARCHITECTURE                       │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│    ┌──────────┐      ┌──────────┐      ┌──────────┐            │
-│    │  BRAIN   │─────▶│   MAP    │─────▶│GUARDRAIL │───▶ Execute│
-│    │ (Agent)  │      │ (Graph)  │      │  (PINN)  │    or Veto │
-│    └──────────┘      └──────────┘      └──────────┘            │
-│         │                 │                 │                   │
-│    Proposes          Validates         Validates               │
-│    Actions           Topology          Physics                 │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-> **Research scaffold** — not intended for real industrial control systems.
+<p align="center">
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+"></a>
+  <a href="#"><img src="https://img.shields.io/badge/tests-71%20passing-brightgreen.svg" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="#"><img src="https://img.shields.io/badge/NIST%20RMF-Compliant-orange.svg" alt="NIST RMF"></a>
+</p>
 
 ---
 
-## Features
-
-- **Triadic Runtime Assurance**: Propose → Verify → Execute pattern with iterative refinement
-- **Physics-Informed Guardrail**: PINN-based constraint checking with ensemble uncertainty quantification
-- **GraphRAG-Ready Grounding**: Pluggable graph backends (NetworkX, Microsoft GraphRAG)
-- **Append-Only Audit Trail**: SQLite-backed event store for non-repudiation
-- **NIST RMF Deployment Modes**: Shadow, Guarded, and Expanded autonomy levels
-- **Reproducible Experiments**: DVC pipelines + MLflow tracking
-- **Production-Ready**: Docker Compose deployment with health checks
+> **Research scaffold** — An untrusted agent (Brain) proposes actions that are validated by a structural gate (Map) and physics gate (Guardrail) before execution.
 
 ---
 
-## Architecture
+## 🎯 Overview
 
-```mermaid
-flowchart LR
-    subgraph Brain["Brain (Agent)"]
-        A[Goal] --> B[Propose Actions]
-    end
+ANST-Kit implements a **triadic runtime assurance system** that enables safe agentic control of physical systems. The architecture ensures that AI-generated control actions are validated against both **structural topology** and **physics constraints** before execution.
 
-    subgraph Map["Map (Structural Gate)"]
-        C[Topology Check]
-        D[Asset Validation]
-    end
+### Key Capabilities
 
-    subgraph Guardrail["Guardrail (Physics Gate)"]
-        E[PINN Inference]
-        F[Constraint Check]
-    end
+| Feature | Description |
+|---------|-------------|
+| **Triadic Verification** | Propose → Verify → Execute pattern with iterative refinement |
+| **Physics-Informed Guardrail** | PINN-based constraint checking with ensemble uncertainty quantification |
+| **GraphRAG-Ready Grounding** | Pluggable graph backends (NetworkX, Microsoft GraphRAG) |
+| **Append-Only Audit Trail** | SQLite-backed event store for non-repudiation |
+| **NIST RMF Deployment Modes** | Shadow, Guarded, and Expanded autonomy levels |
+| **Reproducible Experiments** | DVC pipelines + MLflow tracking |
 
-    B --> C
-    C --> D
-    D -->|Pass| E
-    D -->|Fail| R[Revise]
-    E --> F
-    F -->|Pass| X[Execute]
-    F -->|Fail| R
-    R --> B
-```
+---
+
+## 🏗️ System Architecture
+
+<p align="center">
+  <img src="assets/architecture_diagram.png" alt="Triadic Runtime Assurance Architecture" width="100%">
+</p>
+
+The triadic architecture enforces a strict **propose → verify → execute** loop:
+
+1. **Brain (Agent)** proposes control actions based on a goal and current state
+2. **Map (Structural Gate)** validates that targets exist and actions match equipment types
+3. **Guardrail (Physics Gate)** simulates the action via PINN to ensure physical safety
+4. On **failure**, the agent receives feedback and revises its proposal
+5. On **success**, actions proceed to the Mode Controller for execution
 
 | Component | Purpose | Implementation |
 |-----------|---------|----------------|
@@ -76,12 +60,111 @@ flowchart LR
 
 ---
 
-## Quickstart
+## ⚡ The Physics Guardrail
+
+<p align="center">
+  <img src="assets/pinn_physics.png" alt="Physics-Informed Neural Network Validation" width="100%">
+</p>
+
+The physics gate uses a **Physics-Informed Neural Network (PINN)** to enforce safety constraints:
+
+### TankPINN Model
+
+```
+Input:  (t, H₀, u_pump, u_valve)
+Output: H(t) — predicted tank level over time horizon
+```
+
+### Physics Residual
+
+The ODE governing the tank dynamics:
+
+```
+dH/dt = k_in · u_pump - k_out · u_valve · √H
+```
+
+The PINN is trained to minimize the physics residual `r ≈ 0`, ensuring predictions are physically consistent.
+
+### Uncertainty Quantification
+
+- **EnsemblePINN**: 5 independently trained models provide epistemic uncertainty via disagreement
+- **OOD Detection**: Mahalanobis distance flags out-of-distribution inputs
+- **Safety Traffic Light**: Green (safe), Yellow (uncertain), Red (unsafe)
+
+---
+
+## 🗺️ Structural Validation
+
+<p align="center">
+  <img src="assets/structural_gate.png" alt="Structural Gate: Graph Topology Validation" width="100%">
+</p>
+
+The structural gate prevents **hallucinated assets** and **invalid commands**:
+
+### Validation Checks
+
+| Check | Description |
+|-------|-------------|
+| ✓ Target Exists | Asset ID must exist in the plant graph |
+| ✓ Type Match | Action type must match equipment kind (pump → SET_PUMP_SPEED) |
+| ✓ Value Range | Setpoints must be within [0, 1] |
+| ✓ Connectivity | Actuator must have path to/from controlled unit |
+
+### Example Rejections
+
+```python
+# ✗ Unknown target_id 'V99'
+ControlAction(type=SET_VALVE_OPENING, target_id="V99", value=0.5)
+
+# ✗ Type mismatch: SET_PUMP on valve
+ControlAction(type=SET_PUMP_SPEED, target_id="V1", value=0.5)
+
+# ✗ Out of range
+ControlAction(type=SET_PUMP_SPEED, target_id="P1", value=1.5)
+```
+
+---
+
+## 🎚️ Deployment Modes
+
+<p align="center">
+  <img src="assets/deployment_modes.png" alt="NIST RMF Deployment Modes" width="100%">
+</p>
+
+ANST-Kit supports **graduated autonomy** per NIST AI Risk Management Framework:
+
+| Mode | Human Oversight | Execution | Use Case |
+|------|-----------------|-----------|----------|
+| **Shadow** | 100% | Never | Initial deployment, A/B testing |
+| **Guarded** | Per-action confirmation | After approval | Supervised autonomy |
+| **Expanded** | Triad gates only | If triad approves | Full bounded autonomy |
+
+---
+
+## 📊 End-to-End Pipeline
+
+<p align="center">
+  <img src="assets/data_flow.png" alt="End-to-End Pipeline & Audit Trail" width="100%">
+</p>
+
+### Audit Trail
+
+Every decision is logged to an **append-only SQLite store** for non-repudiation:
+
+| Event Type | Trigger |
+|------------|---------|
+| `proposal_submitted` | Agent generates actions |
+| `structural_gate_pass/fail` | Map validates topology |
+| `physics_gate_pass/fail` | Guardrail checks physics |
+| `decision_made` | Final approval/rejection |
+
+---
+
+## 🚀 Quickstart
 
 ### Installation
 
 ```bash
-# Clone and install
 git clone https://github.com/hadijannat/ANST-Kit.git
 cd ANST-Kit
 python -m venv .venv && source .venv/bin/activate
@@ -113,7 +196,7 @@ python -m anstkit train-pinn --steps 3000 --seed 7
 
 ---
 
-## Ablation Study Results
+## 📈 Ablation Study Results
 
 Comparison of triad configurations (500 trials, seed=7):
 
@@ -124,11 +207,11 @@ Comparison of triad configurations (500 trials, seed=7):
 | **Brain + Physics** | 12.8% | 41.2% | — | 58.8% |
 | **Full Triad** | **8.8%** | 35.6% | 38.6% | 25.8% |
 
-**Key Finding**: The full triad reduces the unsafe execution rate from 40% (unguarded) to 8.8%, with both gates contributing complementary safety layers.
+> **Key Finding**: The full triad reduces the unsafe execution rate from 40% (unguarded) to 8.8%, with both gates contributing complementary safety layers.
 
 ---
 
-## API Reference
+## 🔌 API Reference
 
 Start the FastAPI service:
 
@@ -156,7 +239,7 @@ curl -X POST http://localhost:8000/propose \
 
 ---
 
-## Repository Structure
+## 📁 Repository Structure
 
 ```
 ANST-Kit/
@@ -174,9 +257,9 @@ ANST-Kit/
 │   ├── audit/               # Append-only event store
 │   ├── services/            # FastAPI orchestrator service
 │   └── governance/          # NIST RMF deployment modes
+├── assets/                  # Technical diagrams
 ├── models/                  # Trained PINN weights
 ├── metrics/                 # Benchmark and ablation results
-├── configs/                 # DVC parameter files
 ├── tests/                   # 71 unit tests
 ├── Dockerfile               # Container build
 ├── docker-compose.yaml      # Multi-service deployment
@@ -185,49 +268,27 @@ ANST-Kit/
 
 ---
 
-## Deployment
+## 🐳 Deployment
 
 ### Docker Compose
 
 ```bash
-# Build and start services
 docker-compose up -d
-
-# Check health
 curl http://localhost:8000/health
-
-# View MLflow UI
-open http://localhost:5000
+open http://localhost:5000  # MLflow UI
 ```
 
 ### DVC Pipeline
 
 ```bash
-# Initialize DVC
 dvc init
-
-# Run full pipeline (train → benchmark → ablation)
-dvc repro
-
-# View metrics
-dvc metrics show
+dvc repro              # Run full pipeline (train → benchmark → ablation)
+dvc metrics show       # View metrics
 ```
 
 ---
 
-## Deployment Modes
-
-ANST-Kit supports graduated autonomy per NIST AI RMF:
-
-| Mode | Behavior | Use Case |
-|------|----------|----------|
-| **Shadow** | Log decisions, never execute | Initial deployment, A/B testing |
-| **Guarded** | Execute only with human confirmation | Supervised autonomy |
-| **Expanded** | Auto-execute approved actions | Full autonomy within triad bounds |
-
----
-
-## Extending ANST-Kit
+## 🔧 Extending ANST-Kit
 
 ### Replace Demo Agent with LLM
 
@@ -260,7 +321,7 @@ Replace `TankPINN` with asset-grade PINNs from:
 
 ---
 
-## Citation
+## 📖 Citation
 
 ```bibtex
 @software{anstkit2025,
@@ -272,6 +333,6 @@ Replace `TankPINN` with asset-grade PINNs from:
 
 ---
 
-## License
+## 📄 License
 
 MIT License — see [LICENSE](LICENSE).
